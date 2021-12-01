@@ -28,83 +28,55 @@ SOFTWARE.
 # DON'T CHANGE THE FOOTER TEXT OF THE EMBEDS #
 ############################################## 
 
-import discord
-from discord.ext import commands
 
-from discord_components import Button, ButtonStyle
-from math import *
-import asyncio
+from asyncio import TimeoutError
+from math import pi, tau, e, sqrt
 
-def calculate(exp:str):
+from discord import Embed
+from discord.ext.commands import Cog, command, Context, Bot
+from discord_components import Button, ButtonStyle, Interaction, ComponentMessage
+
+
+def calculate(expression: str):
     result=''
-    o=exp
-    o=o.replace('π', str(pi))
-    o=o.replace('τ', str(tau))
-    o=o.replace('e', str(e))
-    o=o.replace('×', '*')
-    o=o.replace('÷', '/')
-    o=o.replace('^2', '**2')
-    o=o.replace('^3', '**3')
-    o=o.replace('^', '**')
-    o=o.replace('√', 'sqrt')
+    expression = expression.replace('×', '*')
+    expression = expression.replace('÷', '/')
+    expression = expression.replace('^2', '**2')
+    expression = expression.replace('^3', '**3')
+    expression = expression.replace('^', '**')
+    expression = expression.replace('√', 'sqrt')
+
     try:
-        result = eval(o, {'sqrt': sqrt})
+        result = eval(expression, {'sqrt': sqrt})
     except:
-        result=f"Syntax Error!\nDon't forget the sign(s) ('×', '÷', ...).\nnot: 3(9+1) but 3×(9+1)"
+        result="Syntax Error!\nDon't forget the sign(s) ('×', '÷', ...).\nnot: 3(9+1) but 3×(9+1)"
+
     return result
 
-def input_formatter(original:str, new:str):
+
+def input_formatter(original: str, new: str):
     if 'Syntax Error!' in original:
         original='|'
-    lst=list(original)
+    lst = list(original)
     try:
-        index=lst.index('|')
+        index = lst.index('|')
         lst.remove('|')
     except:
-        index=0
-    if new == '1':
-        lst.insert(index, '1')
-    elif new == '2':
-        lst.insert(index, '2')
-    elif new == '3':
-        lst.insert(index, '3')
-    elif new == '4':
-        lst.insert(index, '4')
-    elif new == '5':
-        lst.insert(index, '5')
-    elif new == '6':
-        lst.insert(index, '6')
-    elif new == '7':
-        lst.insert(index, '7')
-    elif new == '8':
-        lst.insert(index, '8')
-    elif new == '9':
-        lst.insert(index, '9')
-    elif new == '10':
-        lst.insert(index, '10')
-    elif new == '0':
-        lst.insert(index, '0')
-    elif new == '00':
-        lst.insert(index, '00')
-    elif new == '+':
-        lst.insert(index, '+')
-    elif new == '÷':
-        lst.insert(index, '÷')
-    elif new == '-':
-        lst.insert(index, '-')
-    elif new == '×':
-        i=index-1
+        index = 0
+
+    if new == '×':
+        i = index - 1
         try:
-            if lst[i]=='×':
-                lst.insert(index+1, '|')
+            if lst[i] == '×':
+                lst.insert(index + 1, '|')
                 original=''.join(lst)
                 return original
         except:
-            lst.insert(index+1, '|')
-            original=''.join(lst)
+            lst.insert(index + 1, '|')
+            original = ''.join(lst)
             return original
         try:
-            if lst[index]=='×':
+            if lst[index] == '×':
                 lst.insert(index, '|')
                 original=''.join(lst)
                 return original
@@ -112,57 +84,39 @@ def input_formatter(original:str, new:str):
                 lst.insert(index, '×')
         except:
             lst.insert(index, '×')
-    elif new == '.':
-        lst.insert(index, '.')
-    elif new == '(':
-        lst.insert(index, '(')
-    elif new == ')':
-        lst.insert(index, ')')
-    elif new == 'π':
-        lst.insert(index, 'π')
-    elif new == 'X²':
-        if '^' in lst:
-            pass
-        else:
-            lst.insert(index, '^2')
-    elif new == 'X³':
-        if '^' in lst:
-            pass
-        else:
-            lst.insert(index, '^3')
-    elif new == 'Xˣ':
-        if '^' in lst:
-            pass
-        else:
-            lst.insert(index, '^')
-    elif new == 'e':
-        lst.insert(index, 'e')
-    elif new == 'τ':
-        lst.insert(index, 'τ')
-    elif new == '000':
-        lst.insert(index, '000')
     elif new == '√':
         lst.insert(index, '√()')
-    lst.insert(index+1, '|')
-    original=''.join(lst)
+    elif new in 'X²X³Xˣ':
+        if '^' not in lst:
+            if new == 'X²':
+                lst.insert(index, '^2')
+            elif new == 'X³':
+                lst.insert(index, '^3')
+            elif new == 'Xˣ':
+                lst.insert(index, '^')
+    else:
+        lst.insert(index, new)
+
+    lst.insert(index + 1, '|')
+    original = ''.join(lst)
     return original
   
-class Calculator(commands.Cog):
-    def __init__(self, client):
-        self.client = client
-        self.buttons_one = [
+class Calculator(Cog):
+    def __init__(self, bot: Bot):
+        self.bot = bot
+        self.normal_components = [
             [
                 Button(style=ButtonStyle.grey, label='1', id='1'),
                 Button(style=ButtonStyle.grey, label='2', id='2'),
                 Button(style=ButtonStyle.grey, label='3', id='3'),
-                Button(style=ButtonStyle.blue, label='×', id='×'),
+                Button(style=ButtonStyle.blue, label='×', id='*'),
                 Button(style=ButtonStyle.red, label='Exit', id='Exit')
             ],
             [
                 Button(style=ButtonStyle.grey, label='4', id='4'),
                 Button(style=ButtonStyle.grey, label='5', id='5'),
                 Button(style=ButtonStyle.grey, label='6', id='6'),
-                Button(style=ButtonStyle.blue, label='÷', id='÷'),
+                Button(style=ButtonStyle.blue, label='÷', id='/'),
                 Button(style=ButtonStyle.red, label='⌫', id='⌫')
             ],
             [
@@ -182,27 +136,28 @@ class Calculator(commands.Cog):
             [
                 Button(style=ButtonStyle.green, label='❮', id='❮'),
                 Button(style=ButtonStyle.green, label='❯', id='❯'),
-                Button(style=ButtonStyle.grey, label='Change to scientific mode', emoji='\U0001f9d1\u200D\U0001f52c', id='400')
+                Button(style=ButtonStyle.grey, label='Change to scientific mode', emoji='\U0001f9d1\u200D\U0001f52c', id='scientific_mode')
             ],
         ]
-        self.buttons_two = [
+
+        self.scientific_components = [
             [
                 Button(style=ButtonStyle.grey, label='(', id='('),
                 Button(style=ButtonStyle.grey, label=')', id=')'),
-                Button(style=ButtonStyle.grey, label='π', id='π'),
-                Button(style=ButtonStyle.blue, label='×', id='×'),
+                Button(style=ButtonStyle.grey, label='π', id=str(pi)),
+                Button(style=ButtonStyle.blue, label='×', id='*'),
                 Button(style=ButtonStyle.red, label='Exit', id='Exit')
             ],
             [
                 Button(style=ButtonStyle.grey, label='X²', disabled=True),
                 Button(style=ButtonStyle.grey, label='X³', disabled=True),
                 Button(style=ButtonStyle.grey, label='Xˣ', disabled=True),
-                Button(style=ButtonStyle.blue, label='÷', id='÷'),
+                Button(style=ButtonStyle.blue, label='÷', id='/'),
                 Button(style=ButtonStyle.red, label='⌫', id='⌫')
             ],
             [
-                Button(style=ButtonStyle.grey, label='e', id='e'),
-                Button(style=ButtonStyle.grey, label='τ', id='τ'),
+                Button(style=ButtonStyle.grey, label='e', id=str(e)),
+                Button(style=ButtonStyle.grey, label='τ', id=str(tau)),
                 Button(style=ButtonStyle.grey, label='000', id='000'),
                 Button(style=ButtonStyle.blue, label='+', id='+'),
                 Button(style=ButtonStyle.red, label='Clear', id='Clear')
@@ -217,106 +172,103 @@ class Calculator(commands.Cog):
             [
                 Button(style=ButtonStyle.green, label='❮', id='❮'),
                 Button(style=ButtonStyle.green, label='❯', id='❯'),
-                Button(style=ButtonStyle.grey, label='Change to normal modeㅤ', emoji='\U0001f468\u200D\U0001f3eb', id='401')
+                Button(style=ButtonStyle.grey, label='Change to normal modeㅤ', emoji='\U0001f468\u200D\U0001f3eb', id='normal_mode')
             ],
         ]
-    
-    @commands.command(aliases=['calc', 'calculator'])
-    @commands.max_concurrency(1, per=commands.BucketType.user)
-    async def calcu(self,ctx):
-        affichage='|'
-        id=1
-        e = discord.Embed(title=f'{ctx.author}\'s calculator', description=f'```{affichage}```', color=int("2f3136", 16))
-        e.set_footer(text=f"https://github.com/Polsulpicien")
-        expression=''
-        m = await ctx.send(components=self.buttons_one, embed=e)
-        
-        def checkUp(res):
-            return res.user.id == ctx.author.id and res.channel.id == ctx.channel.id and res.message.id==m.id
-    
+
+    def _get_embed(self, ctx: Context, embed_description: str):
+        embed = Embed(title=f'{ctx.author}\'s calculator', description=embed_description, color=0x2f3136)
+        embed.set_footer(text="https://github.com/Polsulpicien")
+        return embed
+
+    @command(aliases=['calc', 'calculator'])
+    async def calcu(self, ctx: Context):
+        affichage = '|'
+        is_normal_mode = True
+        embed = self._get_embed(ctx, f'```{affichage}```')
+        expression = ''
+        message: ComponentMessage = await ctx.send(components=self.normal_components, embed=embed)
+
         while True:
             try:
-                res = await self.client.wait_for('button_click', check=checkUp, timeout=60) 
-            except asyncio.TimeoutError:
-                a = discord.Embed(title=f'{ctx.author}\'s calculator', description=f'```{affichage}```', color=int("2f3136", 16))
-                a.set_footer(text=f"https://github.com/Polsulpicien")
-                return await m.edit(embed=a)
+                interaction: Interaction = await self.bot.wait_for(
+                    'button_click',
+                    check=lambda inter: inter.author.id == ctx.author.id and inter.message.id == message.id,
+                    timeout=60
+                )
+            except TimeoutError:
+                return await message.edit(embed=self._get_embed(ctx, f'```{affichage}```'))
+
+            if interaction.custom_id == 'Exit':
+                embed = self._get_embed(ctx, interaction.message.embeds[0].description)
+                return await interaction.edit_origin(
+                    embed=embed,
+                    components=[row.disable_components() for row in interaction.message.components]
+                )
+            elif interaction.custom_id == '⌫':
+                lst = list(interaction.message.embeds[0].description.replace('`', ''))
+                if len(lst) > 1:
+                    try:
+                        index = lst.index('|')
+                        x = index - 2
+                        y = index + 1
+                        if lst[x] == '×' and lst[y] == '×':
+                            lst.pop(index-1)
+                            lst.pop(index-2)
+                        else:
+                            lst.pop(index-1)
+                    except:
+                        lst=['|']
+                affichage = ''.join(lst)
+                expression = affichage
+            elif interaction.custom_id == 'Clear':
+                expression = ''
+                affichage = '|'
+            elif interaction.custom_id == '=':
+                if 'Syntax Error!' in affichage or affichage == '|':
+                    affichage='|'
+                else:
+                    expression = expression.replace('|','')
+                    expression = calculate(expression)
+                    affichage = f"{affichage.replace('|','')}={expression}"
+                expression = ''
+            elif interaction.custom_id == '❮':
+                lst = list(interaction.message.embeds[0].description.replace('`',''))
+                if len(lst) > 1:
+                    try:
+                        index = lst.index('|')
+                        lst.remove('|')
+                        lst.insert(index-1, '|')
+                    except:
+                        lst=['|']
+                affichage = ''.join(lst)
+            elif interaction.custom_id == '❯':
+                lst = list(interaction.message.embeds[0].description.replace('`',''))
+                if len(lst) > 1:
+                    try:
+                        index = lst.index('|')
+                        lst.remove('|')
+                        lst.insert(index+1, '|')
+                    except:
+                        lst = ['|']
+                affichage = ''.join(lst)
+            elif interaction.custom_id == 'scientific_mode':
+                is_normal_mode = False
+                await interaction.edit_origin(embed=self._get_embed(ctx, f'```{affichage}```'), components=self.scientific_components)
+            elif interaction.custom_id == 'normal_mode':
+                is_normal_mode = True
+                await interaction.edit_origin(embed=self._get_embed(ctx, f'```{affichage}```'), components=self.normal_components)
             else:
-                if str(res.author) == str(res.message.embeds[0].title.split("'s calculator")[0]):
-                    if res.component.id == 'Exit':
-                        q = discord.Embed(title=f'{ctx.author}\'s calculator', description=f'{res.message.embeds[0].description}', color=int("2f3136", 16))
-                        q.set_footer(text=f"https://github.com/Polsulpicien")
-                        return await res.respond(embed=q, components=[], type=7)
-                    elif res.component.id == '⌫':
-                        lst=list(res.message.embeds[0].description.replace('`',''))
-                        if len(lst)>1:
-                            try:
-                                index=lst.index('|')
-                                x=index-2
-                                y=index+1
-                                if lst[x]=='×' and lst[y]=='×':
-                                    lst.pop(index-1)
-                                    lst.pop(index-2)
-                                else:
-                                    lst.pop(index-1)
-                            except:
-                                lst=['|']
-                        affichage=''.join(lst)
-                        expression=affichage
-                    elif res.component.id == 'Clear':
-                        expression=''
-                        affichage='|'
-                    elif res.component.id == '=':
-                        if 'Syntax Error!' in affichage or affichage=='|':
-                            expression=''
-                            affichage='|'
-                        else:
-                            expression=expression.replace('|','')
-                            expression = calculate(expression)
-                            affichage=f"{affichage.replace('|','')}={expression}"
-                            expression=''
-                    elif res.component.id == '❮':
-                        lst=list(res.message.embeds[0].description.replace('`',''))
-                        if len(lst)>1:
-                            try:
-                                index=lst.index('|')
-                                lst.remove('|')
-                                lst.insert(index-1, '|')
-                            except:
-                                lst=['|']
-                        affichage=''.join(lst)
-                    elif res.component.id == '❯':
-                        lst=list(res.message.embeds[0].description.replace('`',''))
-                        if len(lst)>1:
-                            try:
-                                index=lst.index('|')
-                                lst.remove('|')
-                                lst.insert(index+1, '|')
-                            except:
-                                lst=['|']
-                        affichage=''.join(lst)
-                    elif res.component.id == '400':
-                        id=2
-                        e = discord.Embed(title=f'{ctx.author}\'s calculator', description=f'```{affichage}```', color=int("2f3136", 16))
-                        e.set_footer(text=f"https://github.com/Polsulpicien")
-                        await res.respond(embed=e, components=self.buttons_two, type=7)
-                    elif res.component.id == '401':
-                        id=1
-                        e = discord.Embed(title=f'{ctx.author}\'s calculator', description=f'```{affichage}```', color=int("2f3136", 16))
-                        e.set_footer(text=f"https://github.com/Polsulpicien")
-                        await res.respond(embed=e, components=self.buttons_one, type=7)
-                    else:
-                        if '=' in affichage:
-                            affichage=''
-                        expression = input_formatter(original=affichage, new=res.component.label)
-                        affichage=expression
-                    if res.component.id != '400' and res.component.id!='401':
-                        e = discord.Embed(title=f'{ctx.author}\'s calculator', description=f'```{affichage}```', color=int("2f3136", 16))
-                        e.set_footer(text=f"https://github.com/Polsulpicien")
-                        if id==1:
-                            await res.respond(embed=e, components=self.buttons_one, type=7)
-                        else:
-                            await res.respond(embed=e, components=self.buttons_two, type=7)
-                            
-def setup(client):
-    client.add_cog(Calculator(client))
+                if '=' in affichage:
+                    affichage = ''
+                expression = input_formatter(original=affichage, new=interaction.component.label)
+                affichage = expression
+
+            if interaction.custom_id not in ['scientific_mode', 'normal_mode']:
+                if is_normal_mode:
+                    await interaction.edit_origin(embed=self._get_embed(ctx, f'```{affichage}```'), components=self.normal_components)
+                else:
+                    await interaction.edit_origin(embed=self._get_embed(ctx, f'```{affichage}```'), components=self.scientific_components)
+
+def setup(bot):
+    bot.add_cog(Calculator(bot))
